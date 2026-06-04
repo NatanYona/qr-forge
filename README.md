@@ -12,8 +12,11 @@ nunca se sube a ningún servidor.
 - **Tipos de contenido:** URL / texto y redes **Wi-Fi** (SSID + contraseña).
 - **Personalización:** color del código y del fondo, paletas, forma de los
   puntos y de las esquinas, logo en el centro y margen.
-- **Escaneabilidad:** aviso automático de contraste bajo y corrección de errores
-  forzada a nivel alto (H) cuando añades un logo.
+- **Escaneabilidad:** aviso automático de contraste bajo, corrección de errores
+  forzada a nivel alto (H) al añadir un logo, y un **validador que decodifica el QR
+  en el navegador** para confirmar que se lee (incluso a tamaño pequeño).
+- **Lector multi-QR:** sube una imagen y extrae **todos** los códigos QR que
+  contenga, con su tipo (URL / Wi-Fi / texto). 100% local.
 - **Exportación:** PNG y SVG (vectorial, listo para imprimir) y copiar al
   portapapeles.
 
@@ -24,14 +27,21 @@ nunca se sube a ningún servidor.
 - [Tailwind CSS v4](https://tailwindcss.com)
 - [`qr-code-styling`](https://github.com/kozakdenys/qr-code-styling) para el
   renderizado del QR
+- [`jsQR`](https://github.com/cozmo/jsQR) (validación de escaneo) y
+  [`zxing-wasm`](https://github.com/Sec-ant/zxing-wasm) (lectura multi-QR), ambos
+  en el cliente
 
 ## Desarrollo
 
+El proyecto usa **Yarn 4** gestionado con [Corepack](https://github.com/nodejs/corepack)
+(incluido con Node ≥ 16). Actívalo una vez con `corepack enable` y la versión correcta
+de Yarn se usará automáticamente.
+
 ```bash
-npm install
-npm run dev      # servidor local en http://localhost:5173
-npm run build    # genera la versión de producción en dist/
-npm run preview  # sirve la build de producción
+yarn install
+yarn dev      # servidor local en http://localhost:5173
+yarn build    # genera la versión de producción en dist/
+yarn preview  # sirve la build de producción
 ```
 
 ## Despliegue

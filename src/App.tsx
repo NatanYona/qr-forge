@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ReactNode } from 'react'
+import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useQrCode } from './hooks/useQrCode'
 import {
   DEFAULT_SETTINGS,
@@ -11,6 +11,8 @@ import {
   type QrSettings,
   type WifiAuth,
 } from './lib/qr'
+import { validateScannability, type ScanResult } from './lib/validate'
+import { Decoder } from './components/Decoder'
 
 const DOT_STYLES: { value: DotType; label: string }[] = [
   { value: 'square', label: 'cuadrado' },
@@ -46,6 +48,9 @@ const PALETTES = [
 export default function App() {
   const [settings, setSettings] = useState<QrSettings>(DEFAULT_SETTINGS)
   const [copied, setCopied] = useState(false)
+  const [scan, setScan] = useState<ScanResult | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [mode, setMode] = useState<'forge' | 'decode'>('forge')
   const { stageRef, download, copyPng } = useQrCode(settings)
 
   function set<K extends keyof QrSettings>(key: K, value: QrSettings[K]) {
@@ -74,6 +79,31 @@ export default function App() {
     }
   }
 
+  // Debounced in-browser scannability check: actually decode the generated QR.
+  useEffect(() => {
+    if (!hasContent(settings)) {
+      setScan(null)
+      setChecking(false)
+      return
+    }
+    setChecking(true)
+    let cancelled = false
+    const t = setTimeout(async () => {
+      try {
+        const result = await validateScannability(settings)
+        if (!cancelled) setScan(result)
+      } catch {
+        if (!cancelled) setScan(null)
+      } finally {
+        if (!cancelled) setChecking(false)
+      }
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [settings])
+
   const ratio = contrastRatio(settings.fgColor, settings.bgColor)
   const lowContrast = ratio < 3
   const ready = hasContent(settings)
@@ -82,7 +112,29 @@ export default function App() {
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-6 sm:px-7">
       <Header />
 
-      <main className="mt-7 grid gap-6 lg:grid-cols-[360px_1fr] lg:items-start">
+      <div className="mt-6 flex justify-center">
+        <div className="inline-flex rounded border border-edge bg-panel p-1">
+          <button
+            onClick={() => setMode('forge')}
+            className={`rounded px-5 py-1.5 font-mono text-[13px] font-medium transition ${
+              mode === 'forge' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
+            }`}
+          >
+            ⛏ forge
+          </button>
+          <button
+            onClick={() => setMode('decode')}
+            className={`rounded px-5 py-1.5 font-mono text-[13px] font-medium transition ${
+              mode === 'decode' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
+            }`}
+          >
+            ⌖ decode
+          </button>
+        </div>
+      </div>
+
+      {mode === 'forge' && (
+      <main className="mt-6 grid gap-6 lg:grid-cols-[360px_1fr] lg:items-start">
         {/* ----- Preview ------------------------------------------------ */}
         <section className="panel rise lg:sticky lg:top-6" style={{ animationDelay: '60ms' }}>
           <WindowBar title="preview.svg" status="live" />
@@ -95,6 +147,24 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {ready && (
+              <div
+                className="mt-3 flex items-center justify-center gap-2 font-mono text-[12px]"
+                title={scan?.message ?? ''}
+              >
+                <span className="text-fg-dim">scan-check:</span>
+                {checking || !scan ? (
+                  <span className="text-fg-dim">comprobando…</span>
+                ) : scan.status === 'ok' ? (
+                  <span className="text-acc">✓ legible</span>
+                ) : scan.status === 'risky' ? (
+                  <span className="text-warn">⚠ ajustado</span>
+                ) : (
+                  <span className="text-[#ff6b6b]">✗ ilegible</span>
+                )}
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-2 gap-2.5">
               <button className="btn btn-acc" onClick={() => download('png')} disabled={!ready}>
@@ -317,6 +387,9 @@ export default function App() {
           </section>
         </div>
       </main>
+      )}
+
+      {mode === 'decode' && <Decoder />}
 
       <Footer />
     </div>
