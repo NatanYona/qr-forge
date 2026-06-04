@@ -25,3 +25,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Yarn (Berry / v4) — managed via Corepack, release binary not committed
+.yarn/*
+!.yarn/patches
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
