@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* ---- Design tokens: "terminal / phosphor hacker" --------------------- */
+@theme {
+  --color-base: #07090a;
+  --color-panel: #0b0f11;
+  --color-panel-2: #0f1417;
+  --color-edge: #1b2429;
+  --color-edge-bright: #2b3a40;
+  --color-fg: #8ba99b;
+  --color-fg-dim: #566860;
+  --color-fg-bright: #d8f5e6;
+  --color-acc: #36f5a0;
+  --color-acc-dim: #198a59;
+  --color-warn: #ffb454;
+
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-mono);
+    color: var(--color-fg);
+    background-color: var(--color-base);
+    /* faint phosphor grid + top glow */
+    background-image:
+      radial-gradient(
+        900px 420px at 50% -8%,
+        rgba(54, 245, 160, 0.08),
+        transparent 70%
+      ),
+      linear-gradient(rgba(54, 245, 160, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(54, 245, 160, 0.035) 1px, transparent 1px);
+    background-size: 100% 100%, 32px 32px, 32px 32px;
+    background-attachment: fixed;
+  }
+  /* subtle CRT scanlines */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 2px,
+      rgba(0, 0, 0, 0.18) 2px 3px
+    );
+    opacity: 0.35;
+  }
+  ::selection {
+    background: var(--color-acc);
+    color: #04130c;
+  }
+}
+
+/* ---- Reusable component classes -------------------------------------- */
+@layer components {
+  .panel {
+    @apply rounded-md border border-edge bg-panel;
+  }
+
+  .field-label {
+    @apply font-mono text-[11px] uppercase tracking-[0.16em] text-fg-dim;
+  }
+
+  .text-input {
+    @apply w-full rounded border border-edge bg-base px-3 py-2.5 text-[14px]
+      text-fg-bright caret-acc outline-none transition placeholder:text-fg-dim
+      focus:border-acc focus:ring-2 focus:ring-acc/15
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .select-input {
+    @apply w-full appearance-none rounded border border-edge bg-base px-3 py-2.5
+      text-[14px] text-fg-bright outline-none transition
+      focus:border-acc focus:ring-2 focus:ring-acc/15;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded border px-4 py-2.5
+      font-mono text-[13px] font-medium tracking-wide transition
+      active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-acc {
+    @apply border-acc/70 bg-acc/10 text-acc hover:bg-acc/20
+      hover:shadow-[0_0_22px_-4px_rgba(54,245,160,0.55)];
+  }
+  .btn-ghost {
+    @apply border-edge bg-panel-2 text-fg hover:border-edge-bright hover:text-fg-bright;
+  }
+
+  .glow {
+    box-shadow:
+      0 0 0 1px rgba(54, 245, 160, 0.12),
+      0 0 30px -6px rgba(54, 245, 160, 0.4);
+  }
+}
+
+/* qr-code-styling renders an <svg>/<canvas>; make it scale to its box */
+.qr-stage svg,
+.qr-stage canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.cursor {
+  animation: blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  opacity: 0;
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
