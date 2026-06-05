@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion } from 'motion/react'
 import { decodeImageData, type DecodedQr } from '../lib/decode'
 import { QrResultsList } from './QrResults'
 
@@ -95,7 +96,13 @@ export function Scanner() {
   useEffect(() => () => stop(), [])
 
   return (
-    <section className="panel rise mt-6">
+    <motion.section
+      className="panel mt-6"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+    >
       <div className="flex items-center gap-2 border-b border-edge bg-panel-2 px-4 py-2.5">
         <span className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]" />
@@ -133,9 +140,9 @@ export function Scanner() {
                 {status === 'idle' && (
                   <>
                     <span className="text-3xl text-acc">⊡</span>
-                    <button className="btn btn-acc" onClick={start}>
+                    <motion.button whileTap={{ scale: 0.96 }} className="btn btn-acc" onClick={start}>
                       activar cámara
-                    </button>
+                    </motion.button>
                     <span className="font-mono text-[11px] text-fg-dim">
                       los fotogramas no salen de tu dispositivo
                     </span>
@@ -175,9 +182,9 @@ export function Scanner() {
           </div>
 
           {status === 'scanning' && (
-            <button className="btn btn-ghost mt-3 w-full" onClick={stop}>
+            <motion.button whileTap={{ scale: 0.97 }} className="btn btn-ghost mt-3 w-full" onClick={stop}>
               ✕ detener cámara
-            </button>
+            </motion.button>
           )}
         </div>
 
@@ -207,6 +214,6 @@ export function Scanner() {
           )}
         </div>
       </div>
-    </section>
+    </motion.section>
   )
 }

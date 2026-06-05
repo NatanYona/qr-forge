@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type DragEvent } from 'react'
+import { motion } from 'motion/react'
 import { decodeImageQRs, type DecodedQr } from '../lib/decode'
 import { QrResultsList } from './QrResults'
 
@@ -43,7 +44,13 @@ export function Decoder() {
   }
 
   return (
-    <section className="panel rise mt-6">
+    <motion.section
+      className="panel mt-6"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+    >
       <div className="flex items-center gap-2 border-b border-edge bg-panel-2 px-4 py-2.5">
         <span className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]" />
@@ -121,6 +128,6 @@ export function Decoder() {
           )}
         </div>
       </div>
-    </section>
+    </motion.section>
   )
 }

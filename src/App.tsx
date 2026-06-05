@@ -14,6 +14,13 @@ import {
 import { validateScannability, type ScanResult } from './lib/validate'
 import { Decoder } from './components/Decoder'
 import { Scanner } from './components/Scanner'
+import { AnimatePresence, motion } from 'motion/react'
+
+const MODES = [
+  { id: 'forge', label: '⛏ forge' },
+  { id: 'decode', label: '⌖ decode' },
+  { id: 'scan', label: '⊡ scan' },
+] as const
 
 const DOT_STYLES: { value: DotType; label: string }[] = [
   { value: 'square', label: 'cuadrado' },
@@ -109,36 +116,44 @@ export default function App() {
   const lowContrast = ratio < 3
   const ready = hasContent(settings)
 
+  const scanState: 'checking' | 'ok' | 'risky' | 'fail' =
+    checking || !scan ? 'checking' : scan.status
+  const SCAN_UI = {
+    checking: { label: 'comprobando…', cls: 'text-fg-dim' },
+    ok: { label: '✓ legible', cls: 'text-acc' },
+    risky: { label: '⚠ ajustado', cls: 'text-warn' },
+    fail: { label: '✗ ilegible', cls: 'text-[#ff6b6b]' },
+  } as const
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-6 sm:px-7">
       <Header />
 
       <div className="mt-6 flex justify-center">
         <div className="inline-flex rounded border border-edge bg-panel p-1">
-          <button
-            onClick={() => setMode('forge')}
-            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
-              mode === 'forge' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
-            }`}
-          >
-            ⛏ forge
-          </button>
-          <button
-            onClick={() => setMode('decode')}
-            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
-              mode === 'decode' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
-            }`}
-          >
-            ⌖ decode
-          </button>
-          <button
-            onClick={() => setMode('scan')}
-            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
-              mode === 'scan' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
-            }`}
-          >
-            ⊡ scan
-          </button>
+          {MODES.map((m) => (
+            <motion.button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              whileTap={{ scale: 0.94 }}
+              className="relative rounded px-4 py-1.5 font-mono text-[13px] font-medium"
+            >
+              {mode === m.id && (
+                <motion.span
+                  layoutId="modeIndicator"
+                  className="absolute inset-0 rounded bg-acc/15"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              )}
+              <span
+                className={`relative z-10 transition-colors ${
+                  mode === m.id ? 'text-acc' : 'text-fg-dim hover:text-fg-bright'
+                }`}
+              >
+                {m.label}
+              </span>
+            </motion.button>
+          ))}
         </div>
       </div>
 
@@ -168,29 +183,47 @@ export default function App() {
                 title={scan?.message ?? ''}
               >
                 <span className="text-fg-dim">scan-check:</span>
-                {checking || !scan ? (
-                  <span className="text-fg-dim">comprobando…</span>
-                ) : scan.status === 'ok' ? (
-                  <span className="text-acc">✓ legible</span>
-                ) : scan.status === 'risky' ? (
-                  <span className="text-warn">⚠ ajustado</span>
-                ) : (
-                  <span className="text-[#ff6b6b]">✗ ilegible</span>
-                )}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={scanState}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.18 }}
+                    className={SCAN_UI[scanState].cls}
+                  >
+                    {SCAN_UI[scanState].label}
+                  </motion.span>
+                </AnimatePresence>
               </div>
             )}
 
             <div className="mt-5 grid grid-cols-2 gap-2.5">
-              <button className="btn btn-acc" onClick={() => download('png')} disabled={!ready}>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                className="btn btn-acc"
+                onClick={() => download('png')}
+                disabled={!ready}
+              >
                 ↧ descargar.png
-              </button>
-              <button className="btn btn-ghost" onClick={() => download('svg')} disabled={!ready}>
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                className="btn btn-ghost"
+                onClick={() => download('svg')}
+                disabled={!ready}
+              >
                 ↧ descargar.svg
-              </button>
+              </motion.button>
             </div>
-            <button className="btn btn-ghost mt-2.5 w-full" onClick={onCopy} disabled={!ready}>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              className="btn btn-ghost mt-2.5 w-full"
+              onClick={onCopy}
+              disabled={!ready}
+            >
               {copied ? '✓ copiado al portapapeles' : '⧉ copiar imagen'}
-            </button>
+            </motion.button>
             <p className="mt-3 text-center font-mono text-[11px] text-fg-dim">
               out: png/svg · 1024px · vectorial
             </p>
@@ -402,8 +435,10 @@ export default function App() {
         </div>
       </main>
 
-      {mode === 'decode' && <Decoder />}
-      {mode === 'scan' && <Scanner />}
+      <AnimatePresence mode="wait">
+        {mode === 'decode' && <Decoder key="decode" />}
+        {mode === 'scan' && <Scanner key="scan" />}
+      </AnimatePresence>
 
       <Footer />
     </div>

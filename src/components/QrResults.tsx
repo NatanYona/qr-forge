@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import type { DecodedQr, DecodedType } from '../lib/decode'
 
 const TYPE_BADGE: Record<DecodedType, { label: string; cls: string }> = {
@@ -29,23 +30,33 @@ export function QrResultsList({ results }: { results: DecodedQr[] }) {
 
   return (
     <ul className="flex flex-col gap-2.5">
-      {results.map((r, i) => {
-        const badge = TYPE_BADGE[r.type]
-        const ssid = r.type === 'wifi' ? wifiSsid(r.text) : null
-        return (
-          <li key={r.text} className="rounded border border-edge bg-base p-3">
+      <AnimatePresence>
+        {results.map((r, i) => {
+          const badge = TYPE_BADGE[r.type]
+          const ssid = r.type === 'wifi' ? wifiSsid(r.text) : null
+          return (
+            <motion.li
+              key={r.text}
+              layout
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.2, ease: 'easeOut', delay: Math.min(i * 0.04, 0.16) }}
+              className="rounded border border-edge bg-base p-3"
+            >
             <div className="flex items-center justify-between gap-2">
               <span
                 className={`rounded border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${badge.cls}`}
               >
                 {badge.label}
               </span>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 onClick={() => copy(r.text, i)}
                 className="font-mono text-[11px] text-fg-dim transition hover:text-acc"
               >
                 {copied === i ? '✓ copiado' : '⧉ copiar'}
-              </button>
+              </motion.button>
             </div>
 
             {ssid && (
@@ -65,9 +76,10 @@ export function QrResultsList({ results }: { results: DecodedQr[] }) {
                 abrir ↗
               </a>
             )}
-          </li>
-        )
-      })}
+            </motion.li>
+          )
+        })}
+      </AnimatePresence>
     </ul>
   )
 }

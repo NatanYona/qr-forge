@@ -32,6 +32,7 @@ nunca se sube a ningún servidor.
 - [`jsQR`](https://github.com/cozmo/jsQR) (validación de escaneo) y
   [`zxing-wasm`](https://github.com/Sec-ant/zxing-wasm) (lectura multi-QR), ambos
   en el cliente
+- [`motion`](https://motion.dev) para animaciones y microinteracciones
 
 ## Desarrollo
 
