@@ -13,6 +13,7 @@ import {
 } from './lib/qr'
 import { validateScannability, type ScanResult } from './lib/validate'
 import { Decoder } from './components/Decoder'
+import { Scanner } from './components/Scanner'
 
 const DOT_STYLES: { value: DotType; label: string }[] = [
   { value: 'square', label: 'cuadrado' },
@@ -50,7 +51,7 @@ export default function App() {
   const [copied, setCopied] = useState(false)
   const [scan, setScan] = useState<ScanResult | null>(null)
   const [checking, setChecking] = useState(false)
-  const [mode, setMode] = useState<'forge' | 'decode'>('forge')
+  const [mode, setMode] = useState<'forge' | 'decode' | 'scan'>('forge')
   const { stageRef, download, copyPng } = useQrCode(settings)
 
   function set<K extends keyof QrSettings>(key: K, value: QrSettings[K]) {
@@ -116,7 +117,7 @@ export default function App() {
         <div className="inline-flex rounded border border-edge bg-panel p-1">
           <button
             onClick={() => setMode('forge')}
-            className={`rounded px-5 py-1.5 font-mono text-[13px] font-medium transition ${
+            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
               mode === 'forge' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
             }`}
           >
@@ -124,11 +125,19 @@ export default function App() {
           </button>
           <button
             onClick={() => setMode('decode')}
-            className={`rounded px-5 py-1.5 font-mono text-[13px] font-medium transition ${
+            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
               mode === 'decode' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
             }`}
           >
             ⌖ decode
+          </button>
+          <button
+            onClick={() => setMode('scan')}
+            className={`rounded px-4 py-1.5 font-mono text-[13px] font-medium transition ${
+              mode === 'scan' ? 'bg-acc/15 text-acc' : 'text-fg-dim hover:text-fg-bright'
+            }`}
+          >
+            ⊡ scan
           </button>
         </div>
       </div>
@@ -394,6 +403,7 @@ export default function App() {
       </main>
 
       {mode === 'decode' && <Decoder />}
+      {mode === 'scan' && <Scanner />}
 
       <Footer />
     </div>

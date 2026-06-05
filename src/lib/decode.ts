@@ -31,8 +31,7 @@ function getReader(): Promise<typeof import('zxing-wasm/reader')> {
   return readerPromise
 }
 
-/** Decode every distinct QR code found in an image. */
-export async function decodeImageQRs(source: Blob): Promise<DecodedQr[]> {
+async function runReader(source: Blob | ImageData): Promise<DecodedQr[]> {
   const mod = await getReader()
   const results = await mod.readBarcodes(source, {
     formats: ['QRCode'],
@@ -48,3 +47,9 @@ export async function decodeImageQRs(source: Blob): Promise<DecodedQr[]> {
   }
   return out
 }
+
+/** Decode every distinct QR code found in an uploaded image. */
+export const decodeImageQRs = (source: Blob): Promise<DecodedQr[]> => runReader(source)
+
+/** Decode every distinct QR code in a single camera frame (ImageData). */
+export const decodeImageData = (frame: ImageData): Promise<DecodedQr[]> => runReader(frame)

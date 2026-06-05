@@ -17,6 +17,8 @@ nunca se sube a ningún servidor.
   en el navegador** para confirmar que se lee (incluso a tamaño pequeño).
 - **Lector multi-QR:** sube una imagen y extrae **todos** los códigos QR que
   contenga, con su tipo (URL / Wi-Fi / texto). 100% local.
+- **Escáner de cámara:** lee códigos QR en vivo con la cámara del dispositivo;
+  los fotogramas se decodifican en local y nunca se suben.
 - **Exportación:** PNG y SVG (vectorial, listo para imprimir) y copiar al
   portapapeles.
 
