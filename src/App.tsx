@@ -133,8 +133,13 @@ export default function App() {
         </div>
       </div>
 
-      {mode === 'forge' && (
-      <main className="mt-6 grid gap-6 lg:grid-cols-[360px_1fr] lg:items-start">
+      {/* Kept mounted (only hidden) so qr-code-styling's one-time SVG mount
+          survives switching to the decoder and back. */}
+      <main
+        className={`mt-6 grid gap-6 lg:grid-cols-[360px_1fr] lg:items-start ${
+          mode === 'forge' ? '' : 'hidden'
+        }`}
+      >
         {/* ----- Preview ------------------------------------------------ */}
         <section className="panel rise lg:sticky lg:top-6" style={{ animationDelay: '60ms' }}>
           <WindowBar title="preview.svg" status="live" />
@@ -387,7 +392,6 @@ export default function App() {
           </section>
         </div>
       </main>
-      )}
 
       {mode === 'decode' && <Decoder />}
 
