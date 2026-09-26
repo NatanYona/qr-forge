@@ -117,10 +117,9 @@ No hay borrado de links en v1: pausar cubre el caso y evita romper QRs impresos 
 ## Panel del admin (`/admin`)
 
 HTML único servido por el Worker, JS plano, estilo terminal coherente con el sitio.
-- Lista: nombre, URL corta (con botón para copiar), total, estado, botón **Generar QR**
-  (abre `https://natanyona.github.io/qr-forge/?url=<url corta>`).
+- Lista: nombre, URL corta, total y estado; al tocar una fila se abre el detalle.
 - Formulario de alta: nombre, slug (sugerido a partir del nombre), destino.
-- Detalle: editar destino, pausar/reactivar, barras por día, barras por hora del día
+- Detalle: copiar la URL corta, botón **Generar QR** (abre `https://natanyona.github.io/qr-forge/?url=<url corta>`), editar destino, pausar/reactivar, barras por día, barras por hora del día
   (convertidas a la zona horaria del navegador), exportar CSV (`hour,count`, generado en el navegador).
 - Gráficos con `div`s o SVG simple; sin librería de gráficos.
 
