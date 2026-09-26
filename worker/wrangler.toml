@@ -2,6 +2,10 @@ name = "qr-forge-go"
 main = "src/index.ts"
 compatibility_date = "2026-08-22"
 
+# Solo responde en el dominio propio: sin *.workers.dev ni URLs de preview.
+workers_dev = false
+preview_urls = false
+
 # Regla de datos: sin logs de requests.
 [observability]
 enabled = false
