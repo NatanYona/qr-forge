@@ -20,6 +20,13 @@ function validName(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 100
 }
 
+/** CSRF: rechaza cross-site y formularios (que no pueden fijar content-type application/json). */
+function isSameOriginJson(request: Request): boolean {
+  const contentType = request.headers.get('content-type')
+  const secFetchSite = request.headers.get('sec-fetch-site')
+  return !!contentType?.startsWith('application/json') && (secFetchSite === null || secFetchSite === 'same-origin')
+}
+
 async function readBody(request: Request): Promise<Body | null> {
   const body = await request.json().catch(() => null)
   return body && typeof body === 'object' && !Array.isArray(body) ? (body as Body) : null
@@ -27,8 +34,9 @@ async function readBody(request: Request): Promise<Body | null> {
 
 /** Rutas de /api/*. La autorización se verifica antes de llamar a esta función. */
 export async function handleApi(request: Request, env: Env): Promise<Response> {
-  const [, resource, slug, sub] = new URL(request.url).pathname.split('/').filter(Boolean)
   const { method } = request
+  if (method !== 'GET' && !isSameOriginJson(request)) return json({ error: 'forbidden' }, 403)
+  const [, resource, slug, sub] = new URL(request.url).pathname.split('/').filter(Boolean)
   if (resource === 'links') {
     if (!slug && method === 'GET') return listLinks(env.DB)
     if (!slug && method === 'POST') return createLink(env.DB, await readBody(request))

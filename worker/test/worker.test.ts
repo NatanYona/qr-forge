@@ -142,6 +142,35 @@ describe('api', () => {
   })
 })
 
+describe('csrf', () => {
+  it('POST con content-type text/plain: 403 y no crea la fila', async () => {
+    const res = await handleApi(
+      new Request('https://go.test/api/links', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify({ slug: 'csrf1', name: 'x', destination: 'https://example.com' }),
+      }),
+      env,
+    )
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'forbidden' })
+    const row = await env.DB.prepare('SELECT 1 FROM links WHERE slug = ?').bind('csrf1').first()
+    expect(row).toBeNull()
+  })
+
+  it('POST con sec-fetch-site cross-site: 403', async () => {
+    const res = await handleApi(
+      new Request('https://go.test/api/links', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' },
+        body: JSON.stringify({ slug: 'csrf2', name: 'x', destination: 'https://example.com' }),
+      }),
+      env,
+    )
+    expect(res.status).toBe(403)
+  })
+})
+
 describe('acceso', () => {
   it('/privacidad es pública', async () => {
     const res = await get('/privacidad')
