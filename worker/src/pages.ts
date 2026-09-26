@@ -30,5 +30,12 @@ export const privacyPage = page(
 )
 
 export function html(body: string, status = 200) {
-  return new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } })
+  return new Response(body, {
+    status,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'x-frame-options': 'DENY',
+      'x-content-type-options': 'nosniff',
+    },
+  })
 }

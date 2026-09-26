@@ -195,6 +195,14 @@ describe('acceso', () => {
     expect(await res.text()).toContain('No guardamos tu IP')
   })
 
+  it('las páginas HTML llevan x-frame-options y x-content-type-options', async () => {
+    for (const path of ['/privacidad', '/nada']) {
+      const res = await get(path)
+      expect(res.headers.get('x-frame-options')).toBe('DENY')
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    }
+  })
+
   it('/admin y /api/* sin JWT de Access: 403', async () => {
     expect((await get('/admin')).status).toBe(403)
     expect((await get('/api/links')).status).toBe(403)
