@@ -61,7 +61,7 @@ worker/
   migrations/0001_init.sql
   src/index.ts        # router: redirect, privacidad, admin, api
   src/admin.html      # panel del admin (HTML + JS plano, estilo terminal)
-  test/index.test.ts
+  test/worker.test.ts
 ```
 
 El panel del admin **no** forma parte del bundle público de GitHub Pages.
@@ -96,7 +96,9 @@ No existe ninguna fila por escaneo individual.
 4. Activo → **302** a `destination` + `ctx.waitUntil(incremento del contador)`.
    - 302 y no 301: los 301 se cachean en el navegador y romperían la edición del destino y el conteo.
    - Si el incremento falla, la redirección ya salió; el error se ignora.
-5. El Worker no loguea cabeceras de la request; Workers Logs desactivados en `wrangler.toml`.
+5. Solo `GET` cuenta el escaneo. `HEAD` devuelve la misma respuesta (302 / pausado / 404) sin contar.
+   Cualquier otro método → 405.
+6. El Worker no loguea cabeceras de la request; Workers Logs desactivados en `wrangler.toml`.
 
 ## API del admin (`/api/*`)
 
@@ -125,13 +127,17 @@ HTML único servido por el Worker, JS plano, estilo terminal coherente con el si
 
 ## Seguridad
 
-- **Cloudflare Access** protege `go.<dominio>/admin*` y `go.<dominio>/api/*`; la política permite
+- **Cloudflare Access** protege `go.<dominio>/admin` y `go.<dominio>/api/*`; la política permite
   solo el email del admin (código por email).
 - **Defensa en profundidad:** cada request a `/api/*` y `/admin` verifica el JWT de
   `Cf-Access-Jwt-Assertion` contra las claves del equipo de Access (`/cdn-cgi/access/certs`), y
   comprueba `aud` y el email. Sin JWT válido → 403. Configuración por secrets del Worker (no se publica el email en el repo):
   `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`.
 - Validación de `destination` en el servidor (evita `javascript:`, `data:`, etc.).
+- **CSRF en `/api/*`:** cualquier método distinto de `GET` se rechaza (403) salvo que
+  `content-type` sea `application/json` y `sec-fetch-site` esté ausente o sea `same-origin`, para
+  que un formulario cross-site (que no puede fijar ese `content-type`) no pueda mutar datos aunque
+  el navegador mande la cookie de Access.
 
 ## Cambio en el generador público
 
@@ -146,18 +152,20 @@ No se valida más allá de lo que ya valida el formulario.
 
 ## Pruebas
 
-Un archivo `worker/test/index.test.ts` (Vitest + `@cloudflare/vitest-pool-workers`, D1 local):
+Un archivo `worker/test/worker.test.ts` (Vitest + `@cloudflare/vitest-pool-workers`, D1 local):
 - slug activo → 302 al destino y el contador de esa hora sube en 1;
 - slug pausado → 200 con página de pausado y no cuenta;
 - slug inexistente → 404;
-- `/api/links` sin JWT → 403;
+- `HEAD` sobre un slug → misma respuesta sin contar; otros métodos → 405;
+- `/api/links` sin JWT → 403; JWT firmado con `jose` (email/aud/iss correctos e incorrectos) → 200/403;
+- POST a `/api/*` con `content-type` distinto de `application/json` o `sec-fetch-site: cross-site` → 403;
 - alta con `destination` `javascript:` → 400; slug reservado o duplicado → 400/409.
 
 ## Pasos manuales del admin
 
 1. Comprar el dominio y delegar su DNS a Cloudflare.
 2. Crear la base D1 (`wrangler d1 create qr-forge`) y copiar su id a `wrangler.toml`.
-3. Crear la aplicación de Cloudflare Access para `/admin*` y `/api/*` con política "solo mi email";
+3. Crear la aplicación de Cloudflare Access para `/admin` y `/api/*` con política "solo mi email";
    cargar `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` y `ADMIN_EMAIL` con `wrangler secret put`.
 4. Crear el token de API de Cloudflare y guardarlo como secret `CLOUDFLARE_API_TOKEN` en GitHub.
 

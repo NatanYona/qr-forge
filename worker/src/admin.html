@@ -78,7 +78,9 @@ async function api(method, path, body) {
     method,
     headers: body ? { 'content-type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
+    redirect: 'manual',
   })
+  if (res.type === 'opaqueredirect') throw new Error('sesión vencida, recargá la página')
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status} (¿sesión vencida? recargá)`)
   return data

@@ -5,6 +5,9 @@ Diseño: `docs/superpowers/specs/2026-09-26-qr-avanzado-design.md`.
 
 ## Configuración inicial (una vez)
 
+> Hacer los pasos 1–7 **antes** de mergear a `main`: el primer push que toque `worker/` dispara el
+> workflow de deploy, y sin esta configuración va a fallar.
+
 1. **Dominio:** comprarlo y agregarlo a Cloudflare (cambiar los nameservers a los que indique Cloudflare).
 2. **Login de wrangler:** `corepack yarn workspace qr-forge-worker wrangler login`
 3. **Base D1:** `corepack yarn workspace qr-forge-worker wrangler d1 create qr-forge`
@@ -17,6 +20,7 @@ Diseño: `docs/superpowers/specs/2026-09-26-qr-avanzado-design.md`.
    - Dominio `go.<dominio>`, rutas `admin` y `api/*` (dos entradas en la misma app).
    - Política: *Allow*, *Include → Emails →* tu email.
    - Copiar el **Application Audience (AUD) tag**.
+   - En la configuración de la app, poner la cookie de sesión (**SameSite**) en `Lax` (o `Strict`).
 6. **Secrets del Worker:**
    ```bash
    corepack yarn workspace qr-forge-worker wrangler secret put ACCESS_TEAM_DOMAIN   # https://<equipo>.cloudflareaccess.com
