@@ -1,6 +1,7 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { exportJWK, generateKeyPair, SignJWT, type JWK } from 'jose'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import worker, { countScan } from '../src/index'
 import { handleApi } from '../src/api'
 
@@ -227,5 +228,86 @@ describe('acceso', () => {
   it('las rutas reservadas no se tratan como slugs', async () => {
     await env.DB.prepare("INSERT INTO links (slug, name, destination, created_at) VALUES ('admin', 'x', 'https://evil.example', '')").run()
     expect((await get('/admin')).status).toBe(403)
+  })
+})
+
+describe('acceso con JWT firmado', () => {
+  // El mismo dominio que usa la prueba "JWT inválido" de arriba: auth.ts cachea el JWKS a nivel de
+  // módulo ligado al primer dominio visto, así que todas las pruebas de este describe (y las de
+  // arriba) comparten un único par de claves y dominio para no pelear contra ese caché.
+  const ACCESS_TEAM_DOMAIN = 'https://equipo.cloudflareaccess.com'
+  const ACCESS_AUD = 'aud'
+  const ADMIN_EMAIL = 'admin@example.com'
+  const KID = 'test-key'
+  const testEnv: Env = { ...env, ACCESS_TEAM_DOMAIN, ACCESS_AUD, ADMIN_EMAIL }
+
+  let privateKey: CryptoKey
+  let jwk: JWK
+
+  beforeAll(async () => {
+    const { publicKey, privateKey: sk } = await generateKeyPair('RS256')
+    privateKey = sk
+    jwk = await exportJWK(publicKey)
+    jwk.alg = 'RS256'
+    jwk.kid = KID
+  })
+
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url === `${ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`) {
+        return new Response(JSON.stringify({ keys: [jwk] }), { headers: { 'content-type': 'application/json' } })
+      }
+      throw new Error(`fetch inesperado en test: ${url}`)
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function sign(claims: { email: string; aud?: string; iss?: string }) {
+    let token = new SignJWT({ email: claims.email })
+      .setProtectedHeader({ alg: 'RS256', kid: KID })
+      .setIssuedAt()
+      .setExpirationTime('5m')
+    if (claims.aud !== undefined) token = token.setAudience(claims.aud)
+    if (claims.iss !== undefined) token = token.setIssuer(claims.iss)
+    return token.sign(privateKey)
+  }
+
+  async function callWithToken(token: string, testEnvOverride: Env = testEnv) {
+    return get('/api/links', { headers: { 'Cf-Access-Jwt-Assertion': token } }, testEnvOverride)
+  }
+
+  it('token correcto: 200', async () => {
+    const token = await sign({ email: ADMIN_EMAIL, aud: ACCESS_AUD, iss: ACCESS_TEAM_DOMAIN })
+    expect((await callWithToken(token)).status).toBe(200)
+  })
+
+  it('email equivocado: 403', async () => {
+    const token = await sign({ email: 'otro@example.com', aud: ACCESS_AUD, iss: ACCESS_TEAM_DOMAIN })
+    expect((await callWithToken(token)).status).toBe(403)
+  })
+
+  it('aud equivocado: 403', async () => {
+    const token = await sign({ email: ADMIN_EMAIL, aud: 'otra-aud', iss: ACCESS_TEAM_DOMAIN })
+    expect((await callWithToken(token)).status).toBe(403)
+  })
+
+  it('iss equivocado: 403', async () => {
+    const token = await sign({ email: ADMIN_EMAIL, aud: ACCESS_AUD, iss: 'https://otro.cloudflareaccess.com' })
+    expect((await callWithToken(token)).status).toBe(403)
+  })
+
+  it('email que difiere solo en mayúsculas: 200', async () => {
+    const token = await sign({ email: ADMIN_EMAIL.toUpperCase(), aud: ACCESS_AUD, iss: ACCESS_TEAM_DOMAIN })
+    expect((await callWithToken(token)).status).toBe(200)
+  })
+
+  it('ACCESS_TEAM_DOMAIN con barra final se normaliza (issuer y certs URL)', async () => {
+    const token = await sign({ email: ADMIN_EMAIL, aud: ACCESS_AUD, iss: ACCESS_TEAM_DOMAIN })
+    const res = await callWithToken(token, { ...testEnv, ACCESS_TEAM_DOMAIN: `${ACCESS_TEAM_DOMAIN}/` })
+    expect(res.status).toBe(200)
   })
 })
