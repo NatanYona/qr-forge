@@ -1,0 +1,21 @@
+name = "qr-forge-go"
+main = "src/index.ts"
+compatibility_date = "2026-08-22"
+
+# Regla de datos: sin logs de requests.
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qr-forge"
+# Reemplazar por el id que imprime `wrangler d1 create qr-forge` (ver worker/README.md).
+# Los tests usan una D1 local y no dependen de este valor.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Permite `import adminPage from './admin.html'` como string.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
