@@ -56,6 +56,23 @@ describe('redirección', () => {
     expect((await get('/nada')).status).toBe(404)
   })
 
+  it('pathname no decodificable: 404 en vez de 500', async () => {
+    expect((await get('/%')).status).toBe(404)
+  })
+
+  it('HEAD: misma respuesta que GET pero no cuenta', async () => {
+    const res = await get('/cafe', { method: 'HEAD' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('https://maps.google.com/?q=cafe')
+    expect(await scanTotal('cafe')).toBe(0)
+  })
+
+  it('POST a un slug: 405', async () => {
+    const res = await get('/cafe', { method: 'POST' })
+    expect(res.status).toBe(405)
+    expect(await scanTotal('cafe')).toBe(0)
+  })
+
   it('countScan agrupa por hora UTC', async () => {
     await countScan(env.DB, 'cafe', new Date('2026-09-26T13:45:10Z'))
     const row = await env.DB.prepare('SELECT hour FROM scans WHERE slug = ?').bind('cafe').first()

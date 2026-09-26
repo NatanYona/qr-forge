@@ -11,18 +11,26 @@ export default {
       if (!(await isAdmin(request, env))) return new Response('Forbidden', { status: 403 })
       return pathname === '/admin' ? html(adminPage) : handleApi(request, env)
     }
-    return redirect(decodeURIComponent(pathname.slice(1)), env, ctx)
+    if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 })
+    let slug: string
+    try {
+      slug = decodeURIComponent(pathname.slice(1))
+    } catch (err) {
+      if (err instanceof URIError) return html(notFoundPage, 404)
+      throw err
+    }
+    return redirect(slug, request.method, env, ctx)
   },
 } satisfies ExportedHandler<Env>
 
-async function redirect(slug: string, env: Env, ctx: ExecutionContext) {
+async function redirect(slug: string, method: string, env: Env, ctx: ExecutionContext) {
   const link = await env.DB.prepare('SELECT destination, paused FROM links WHERE slug = ?')
     .bind(slug)
     .first<{ destination: string; paused: number }>()
   if (!link) return html(notFoundPage, 404)
   if (link.paused) return html(pausedPage)
   // Responder primero; el contador se escribe después y un fallo no afecta la redirección.
-  ctx.waitUntil(countScan(env.DB, slug).catch(() => {}))
+  if (method === 'GET') ctx.waitUntil(countScan(env.DB, slug).catch(() => {}))
   return Response.redirect(link.destination, 302)
 }
 
