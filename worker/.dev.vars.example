@@ -1,0 +1,3 @@
+# Copiar a .dev.vars para `corepack yarn workspace qr-forge-worker dev`.
+# Permite abrir http://localhost:8787/admin sin Access. Nunca cargarlo como secret en producción.
+ADMIN_DEV_BYPASS=1

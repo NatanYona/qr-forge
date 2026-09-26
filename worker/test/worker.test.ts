@@ -141,3 +141,37 @@ describe('api', () => {
     expect((await api('DELETE', '/api/links/cafe')).status).toBe(404)
   })
 })
+
+describe('acceso', () => {
+  it('/privacidad es pública', async () => {
+    const res = await get('/privacidad')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('No guardamos tu IP')
+  })
+
+  it('/admin y /api/* sin JWT de Access: 403', async () => {
+    expect((await get('/admin')).status).toBe(403)
+    expect((await get('/api/links')).status).toBe(403)
+  })
+
+  it('JWT inválido: 403', async () => {
+    const testEnv = {
+      ...env,
+      ACCESS_TEAM_DOMAIN: 'https://equipo.cloudflareaccess.com',
+      ACCESS_AUD: 'aud',
+      ADMIN_EMAIL: 'admin@example.com',
+    }
+    const res = await get('/api/links', { headers: { 'Cf-Access-Jwt-Assertion': 'no.es.jwt' } }, testEnv)
+    expect(res.status).toBe(403)
+  })
+
+  it('ADMIN_DEV_BYPASS se ignora fuera de localhost', async () => {
+    const res = await get('/api/links', {}, { ...env, ADMIN_DEV_BYPASS: '1' })
+    expect(res.status).toBe(403)
+  })
+
+  it('las rutas reservadas no se tratan como slugs', async () => {
+    await env.DB.prepare("INSERT INTO links (slug, name, destination, created_at) VALUES ('admin', 'x', 'https://evil.example', '')").run()
+    expect((await get('/admin')).status).toBe(403)
+  })
+})

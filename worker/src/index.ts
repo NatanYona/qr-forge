@@ -1,8 +1,16 @@
-import { html, notFoundPage, pausedPage } from './pages'
+import adminPage from './admin.html'
+import { handleApi } from './api'
+import { isAdmin } from './auth'
+import { html, notFoundPage, pausedPage, privacyPage } from './pages'
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const { pathname } = new URL(request.url)
+    if (pathname === '/privacidad') return html(privacyPage)
+    if (pathname === '/admin' || pathname.startsWith('/api/')) {
+      if (!(await isAdmin(request, env))) return new Response('Forbidden', { status: 403 })
+      return pathname === '/admin' ? html(adminPage) : handleApi(request, env)
+    }
     return redirect(decodeURIComponent(pathname.slice(1)), env, ctx)
   },
 } satisfies ExportedHandler<Env>
