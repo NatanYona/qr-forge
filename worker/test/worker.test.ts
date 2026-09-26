@@ -2,6 +2,7 @@ import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
 import { beforeEach, describe, expect, it } from 'vitest'
 import worker, { countScan } from '../src/index'
+import { handleApi } from '../src/api'
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>
 
@@ -59,5 +60,84 @@ describe('redirección', () => {
     await countScan(env.DB, 'cafe', new Date('2026-09-26T13:45:10Z'))
     const row = await env.DB.prepare('SELECT hour FROM scans WHERE slug = ?').bind('cafe').first()
     expect(row).toEqual({ hour: '2026-09-26T13' })
+  })
+})
+
+function api(method: string, path: string, body?: unknown) {
+  return handleApi(
+    new Request(`https://go.test${path}`, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+    env,
+  )
+}
+
+describe('api', () => {
+  it('crea un link y lo lista con total 0', async () => {
+    const res = await api('POST', '/api/links', { slug: 'menu', name: ' Menú ', destination: 'https://example.com/menu' })
+    expect(res.status).toBe(201)
+    const { links } = await (await api('GET', '/api/links')).json<{ links: { slug: string; name: string; total: number; paused: boolean }[] }>()
+    expect(links.find((l) => l.slug === 'menu')).toMatchObject({ name: 'Menú', total: 0, paused: false })
+  })
+
+  it('rechaza destinos que no son http/https', async () => {
+    for (const destination of ['javascript:alert(1)', 'data:text/html,hola', 'no es url', 42]) {
+      const res = await api('POST', '/api/links', { slug: 'x', name: 'x', destination })
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('rechaza slugs inválidos o reservados', async () => {
+    for (const slug of ['admin', 'api', 'privacidad', 'Café', 'con espacio', '', 'a'.repeat(65)]) {
+      const res = await api('POST', '/api/links', { slug, name: 'x', destination: 'https://example.com' })
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('rechaza nombres vacíos o de más de 100 caracteres', async () => {
+    for (const name of ['   ', 'n'.repeat(101), undefined]) {
+      const res = await api('POST', '/api/links', { slug: 'x', name, destination: 'https://example.com' })
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('slug duplicado: 409', async () => {
+    const res = await api('POST', '/api/links', { slug: 'cafe', name: 'otro', destination: 'https://example.com' })
+    expect(res.status).toBe(409)
+  })
+
+  it('edita destino y pausa; la redirección lo respeta', async () => {
+    const res = await api('PATCH', '/api/links/cafe', { destination: 'https://example.com/nuevo', paused: true })
+    expect(res.status).toBe(200)
+    expect(await (await get('/cafe')).text()).toContain('pausado')
+    await api('PATCH', '/api/links/cafe', { paused: false })
+    expect((await get('/cafe')).headers.get('location')).toBe('https://example.com/nuevo')
+  })
+
+  it('PATCH inválido: 400; slug inexistente: 404', async () => {
+    expect((await api('PATCH', '/api/links/cafe', { destination: 'javascript:x' })).status).toBe(400)
+    expect((await api('PATCH', '/api/links/cafe', { paused: 'si' })).status).toBe(400)
+    expect((await api('PATCH', '/api/links/cafe', {})).status).toBe(400)
+    expect((await api('PATCH', '/api/links/nada', { paused: true })).status).toBe(404)
+  })
+
+  it('devuelve los escaneos por hora y el total en la lista', async () => {
+    await countScan(env.DB, 'cafe', new Date('2026-09-26T13:00:00Z'))
+    await countScan(env.DB, 'cafe', new Date('2026-09-26T13:30:00Z'))
+    await countScan(env.DB, 'cafe', new Date('2026-09-26T14:00:00Z'))
+    const { scans } = await (await api('GET', '/api/links/cafe/scans')).json<{ scans: unknown[] }>()
+    expect(scans).toEqual([
+      { hour: '2026-09-26T13', count: 2 },
+      { hour: '2026-09-26T14', count: 1 },
+    ])
+    const { links } = await (await api('GET', '/api/links')).json<{ links: { slug: string; total: number }[] }>()
+    expect(links.find((l) => l.slug === 'cafe')?.total).toBe(3)
+  })
+
+  it('ruta desconocida: 404', async () => {
+    expect((await api('GET', '/api/otra')).status).toBe(404)
+    expect((await api('DELETE', '/api/links/cafe')).status).toBe(404)
   })
 })
