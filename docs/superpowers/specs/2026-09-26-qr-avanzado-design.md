@@ -58,7 +58,7 @@ Estructura del repo:
 ```
 worker/
   wrangler.toml
-  schema.sql
+  migrations/0001_init.sql
   src/index.ts        # router: redirect, privacidad, admin, api
   src/admin.html      # panel del admin (HTML + JS plano, estilo terminal)
   test/index.test.ts
@@ -130,7 +130,7 @@ HTML único servido por el Worker, JS plano, estilo terminal coherente con el si
   solo el email del admin (código por email).
 - **Defensa en profundidad:** cada request a `/api/*` y `/admin` verifica el JWT de
   `Cf-Access-Jwt-Assertion` contra las claves del equipo de Access (`/cdn-cgi/access/certs`), y
-  comprueba `aud` y el email. Sin JWT válido → 403. Configuración por variables del Worker:
+  comprueba `aud` y el email. Sin JWT válido → 403. Configuración por secrets del Worker (no se publica el email en el repo):
   `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`.
 - Validación de `destination` en el servidor (evita `javascript:`, `data:`, etc.).
 
@@ -143,7 +143,7 @@ No se valida más allá de lo que ya valida el formulario.
 
 - Workflow de GitHub Actions `deploy-worker.yml`: al hacer push a `main` con cambios en `worker/**`,
   corre `wrangler deploy` con el secret `CLOUDFLARE_API_TOKEN`.
-- Migración inicial: `wrangler d1 execute <db> --remote --file=worker/schema.sql` (manual, una vez).
+- El workflow aplica `wrangler d1 migrations apply qr-forge --remote` antes de cada deploy (idempotente).
 
 ## Pruebas
 
@@ -157,9 +157,9 @@ Un archivo `worker/test/index.test.ts` (Vitest + `@cloudflare/vitest-pool-worker
 ## Pasos manuales del admin
 
 1. Comprar el dominio y delegar su DNS a Cloudflare.
-2. Crear la base D1 y aplicar `schema.sql`.
+2. Crear la base D1 (`wrangler d1 create qr-forge`) y copiar su id a `wrangler.toml`.
 3. Crear la aplicación de Cloudflare Access para `/admin*` y `/api/*` con política "solo mi email";
-   copiar `AUD` y el dominio del equipo a las variables del Worker.
+   cargar `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` y `ADMIN_EMAIL` con `wrangler secret put`.
 4. Crear el token de API de Cloudflare y guardarlo como secret `CLOUDFLARE_API_TOKEN` en GitHub.
 
 ## Decisiones pendientes
