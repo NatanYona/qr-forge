@@ -13,9 +13,7 @@ enabled = false
 [[d1_databases]]
 binding = "DB"
 database_name = "qr-forge"
-# Reemplazar por el id que imprime `wrangler d1 create qr-forge` (ver worker/README.md).
-# Los tests usan una D1 local y no dependen de este valor.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8cd78940-8610-45d5-bfe2-e8b14f73a5c8"
 migrations_dir = "migrations"
 
 # Permite `import adminPage from './admin.html'` como string.
