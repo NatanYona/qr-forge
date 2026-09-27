@@ -54,7 +54,11 @@ const PALETTES = [
 ]
 
 export default function App() {
-  const [settings, setSettings] = useState<QrSettings>(DEFAULT_SETTINGS)
+  // ?url=… precarga el contenido (lo usa el botón "generar QR" del panel de admin).
+  const [settings, setSettings] = useState<QrSettings>(() => {
+    const url = new URLSearchParams(location.search).get('url')
+    return url ? { ...DEFAULT_SETTINGS, contentType: 'url', text: url } : DEFAULT_SETTINGS
+  })
   const [copied, setCopied] = useState(false)
   const [scan, setScan] = useState<ScanResult | null>(null)
   const [checking, setChecking] = useState(false)

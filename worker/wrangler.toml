@@ -1,0 +1,24 @@
+name = "qr-forge-go"
+main = "src/index.ts"
+compatibility_date = "2026-08-22"
+
+# Solo responde en el dominio propio: sin *.workers.dev ni URLs de preview.
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "go.natanyona.online", custom_domain = true }]
+
+# Regla de datos: sin logs de requests.
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qr-forge"
+database_id = "8cd78940-8610-45d5-bfe2-e8b14f73a5c8"
+migrations_dir = "migrations"
+
+# Permite `import adminPage from './admin.html'` como string.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true

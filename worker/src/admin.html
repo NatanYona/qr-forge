@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>qr-forge · admin</title>
+<style>
+  :root{--bg:#07090a;--panel:#0d1112;--line:#1c2426;--fg:#c9d1cc;--dim:#6b7a74;--acc:#36f5a0;--warn:#f5c036}
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.5 ui-monospace,"JetBrains Mono",monospace}
+  main{max-width:960px;margin:0 auto;display:grid;gap:16px}
+  h1{margin:0;font-size:1.1rem;color:var(--acc)}
+  h2{margin:0 0 8px;font-size:.95rem;color:var(--acc)}
+  section{background:var(--panel);border:1px solid var(--line);padding:16px;min-width:0}
+  input,button{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);padding:6px 10px}
+  button{cursor:pointer}
+  button:hover,button:focus-visible{border-color:var(--acc);color:var(--acc)}
+  #create{display:grid;gap:8px;grid-template-columns:1fr 1fr 2fr auto}
+  @media (max-width:640px){#create{grid-template-columns:1fr}}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover td{background:#10181a}
+  .dim{color:var(--dim)}
+  .paused{color:var(--warn)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .bars{display:flex;align-items:flex-end;gap:2px;height:120px;border-bottom:1px solid var(--line)}
+  .bars div{flex:1;min-height:1px;background:var(--acc)}
+  #msg{min-height:1.5em;margin:0;color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+  <h1>&gt; qr-forge admin_</h1>
+  <p id="msg" role="status"></p>
+  <section>
+    <h2>nuevo link</h2>
+    <form id="create">
+      <input id="f-name" placeholder="nombre" aria-label="nombre" required maxlength="100">
+      <input id="f-slug" placeholder="slug" aria-label="slug" required pattern="[a-z0-9\-]{1,64}">
+      <input id="f-dest" type="url" placeholder="https://destino" aria-label="destino" required>
+      <button>crear</button>
+    </form>
+  </section>
+  <section class="scroll">
+    <h2>links</h2>
+    <table>
+      <thead><tr><th>nombre</th><th>url corta</th><th>escaneos</th><th>estado</th></tr></thead>
+      <tbody id="links"></tbody>
+    </table>
+  </section>
+  <section id="detail" hidden></section>
+</main>
+<script>
+const GENERATOR = 'https://natanyona.github.io/qr-forge/'
+const $ = (sel) => document.querySelector(sel)
+const shortUrl = (slug) => `${location.origin}/${slug}`
+
+function h(tag, props = {}, ...children) {
+  const el = document.createElement(tag)
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith('on')) el.addEventListener(key.slice(2), value)
+    else el[key] = value
+  }
+  el.append(...children) // textContent/append: nunca innerHTML con datos
+  return el
+}
+
+const say = (text) => { $('#msg').textContent = text }
+
+async function run(fn) {
+  try { say(''); await fn() } catch (err) { say(`error: ${err.message}`) }
+}
+
+async function api(method, path, body) {
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers: body ? { 'content-type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+    redirect: 'manual',
+  })
+  if (res.type === 'opaqueredirect') throw new Error('sesión vencida, recargá la página')
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status} (¿sesión vencida? recargá)`)
+  return data
+}
+
+let selected = null
+
+async function loadLinks() {
+  const { links } = await api('GET', '/links')
+  $('#links').replaceChildren(...links.map((link) => h('tr', { onclick: () => run(() => showDetail(link)) },
+    h('td', {}, link.name),
+    h('td', { className: 'dim' }, shortUrl(link.slug)),
+    h('td', {}, String(link.total)),
+    h('td', { className: link.paused ? 'paused' : '' }, link.paused ? 'pausado' : 'activo'),
+  )))
+  const fresh = selected && links.find((l) => l.slug === selected.slug)
+  if (fresh) await showDetail(fresh)
+}
+
+async function showDetail(link) {
+  selected = link
+  const { scans } = await api('GET', `/links/${link.slug}/scans`)
+  const url = shortUrl(link.slug)
+  const dest = h('input', { type: 'url', value: link.destination, ariaLabel: 'destino', style: 'flex:1;min-width:14rem' })
+  const detail = $('#detail')
+  detail.hidden = false
+  detail.replaceChildren(
+    h('h2', {}, `${link.name} · ${link.total} escaneos`),
+    h('div', { className: 'row' },
+      h('a', { href: url, target: '_blank', rel: 'noopener', className: 'dim' }, url),
+      h('button', { onclick: () => run(async () => { await navigator.clipboard.writeText(url); say('copiado') }) }, 'copiar'),
+      h('button', { onclick: () => window.open(`${GENERATOR}?url=${encodeURIComponent(url)}`, '_blank', 'noopener') }, 'generar QR'),
+      h('button', { onclick: () => run(async () => {
+        await api('PATCH', `/links/${link.slug}`, { paused: !link.paused })
+        await loadLinks()
+      }) }, link.paused ? 'reactivar' : 'pausar'),
+      h('button', { onclick: () => downloadCsv(link.slug, scans) }, 'exportar CSV'),
+    ),
+    h('div', { className: 'row', style: 'margin-top:8px' },
+      dest,
+      h('button', { onclick: () => run(async () => {
+        await api('PATCH', `/links/${link.slug}`, { destination: dest.value })
+        await loadLinks()
+        say('destino actualizado')
+      }) }, 'guardar destino'),
+    ),
+    h('h2', { style: 'margin-top:16px' }, 'por día · últimos 30'),
+    bars(byDay(scans)),
+    h('h2', { style: 'margin-top:16px' }, 'por hora del día · tu zona horaria'),
+    bars(byHourOfDay(scans)),
+  )
+}
+
+// `hour` viene en UTC ('YYYY-MM-DDTHH'); el agrupado se hace en la zona horaria del navegador.
+const toDate = (hour) => new Date(`${hour}:00:00Z`)
+const pad = (n) => String(n).padStart(2, '0')
+const localDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+function byDay(scans) {
+  const totals = new Map()
+  for (const s of scans) {
+    const key = localDay(toDate(s.hour))
+    totals.set(key, (totals.get(key) || 0) + s.count)
+  }
+  const days = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    days.push([localDay(d), totals.get(localDay(d)) || 0])
+  }
+  return days
+}
+
+function byHourOfDay(scans) {
+  const counts = Array(24).fill(0)
+  for (const s of scans) counts[toDate(s.hour).getHours()] += s.count
+  return counts.map((count, hour) => [`${pad(hour)}h`, count])
+}
+
+function bars(pairs) {
+  const max = Math.max(1, ...pairs.map(([, count]) => count))
+  return h('div', { className: 'bars' },
+    ...pairs.map(([label, count]) => h('div', { title: `${label}: ${count}`, style: `height:${(count / max) * 100}%` })))
+}
+
+function downloadCsv(slug, scans) {
+  const csv = ['hour,count', ...scans.map((s) => `${s.hour},${s.count}`)].join('\n')
+  const a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: `${slug}-escaneos.csv` })
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 0)
+}
+
+const slugify = (text) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64)
+
+let slugTouched = false
+$('#f-slug').addEventListener('input', () => { slugTouched = true })
+$('#f-name').addEventListener('input', () => { if (!slugTouched) $('#f-slug').value = slugify($('#f-name').value) })
+
+$('#create').addEventListener('submit', (event) => {
+  event.preventDefault()
+  run(async () => {
+    await api('POST', '/links', { name: $('#f-name').value, slug: $('#f-slug').value, destination: $('#f-dest').value })
+    $('#create').reset()
+    slugTouched = false
+    await loadLinks()
+    say('link creado')
+  })
+})
+
+run(loadLinks)
+</script>
+</body>
+</html>
